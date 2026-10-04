@@ -1,0 +1,27 @@
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Generated job feeds, exports, local databases and backups
+output/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.log
+remote-swe-backup-*.json
+
+# Local credentials and optional Notion configuration
+.env
+.env.*
+!.env.example
+notion-config.json
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+*~
