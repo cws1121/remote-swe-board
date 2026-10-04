@@ -55,3 +55,17 @@ python3 -m unittest -v
 ```
 
 See [README.txt](README.txt) for source coverage, screening details, backups, and update instructions.
+
+## Updating or repairing the Ubuntu launcher
+
+From your cloned application folder:
+
+```bash
+git pull --ff-only
+python3 app.py --install
+```
+
+Run the installation command again after moving the folder. It replaces the old
+menu entry, refreshes the desktop application database, and updates the desktop
+shortcut to the current path. Close and reopen the applications menu afterward.
+Your SQLite data, statuses, and notes remain in the separate data directory.

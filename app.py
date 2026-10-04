@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Local job screening app, persisted in SQLite outside the downloaded package."""
-import argparse,datetime as dt,fcntl,hashlib,json,os, secrets,shlex,sqlite3,sys,threading,time,urllib.parse,webbrowser
+import argparse,datetime as dt,fcntl,hashlib,json,os, secrets,shlex,sqlite3,sys,threading,time,urllib.parse
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 import board,sources
@@ -123,17 +123,26 @@ class Handler(BaseHTTPRequestHandler):
    return self.send({'error':'Not found'},404)
   except (ValueError,KeyError,TypeError) as e:return self.send({'error':'Invalid request: '+str(e)},400)
 def install():
- import subprocess
+ import shutil,subprocess
  apps=Path.home()/'.local/share/applications';apps.mkdir(parents=True,exist_ok=True)
  exec_line='"'+sys.executable.replace('"','\\"')+'" "'+str(ROOT/'app.py').replace('"','\\"')+'"'
  desktop='[Desktop Entry]\nType=Application\nName=Remote SWE Job Board\nComment=Screen remote jobs, save notes and track applications\nExec='+exec_line+'\nIcon=edit-find\nTerminal=false\nCategories=Office;\n'
- path=apps/'remote-swe-board.desktop';path.write_text(desktop);path.chmod(0o755)
+ # Use a new desktop ID so GNOME discards launchers cached before a move.
+ (apps/'remote-swe-board.desktop').unlink(missing_ok=True)
+ path=apps/'org.local.RemoteSWEBoard.desktop'
+ temporary=path.with_suffix('.desktop.tmp');temporary.write_text(desktop);temporary.chmod(0o755);temporary.replace(path)
+ if shutil.which('update-desktop-database'):
+  subprocess.run(['update-desktop-database',str(apps)],check=True)
  try:folder=Path(subprocess.check_output(['xdg-user-dir','DESKTOP'],text=True).strip())
  except (OSError,subprocess.CalledProcessError):folder=Path.home()/'Desktop'
  if folder.is_dir():
-  shortcut=folder/'Remote SWE Job Board.desktop';shortcut.write_text(desktop);shortcut.chmod(0o755)
+  shortcut=folder/'Remote SWE Job Board.desktop';temporary=shortcut.with_suffix('.desktop.tmp');temporary.write_text(desktop);temporary.chmod(0o755);temporary.replace(shortcut)
   subprocess.run(['gio','set',str(shortcut),'metadata::trusted','true'],capture_output=True)
  print('Installed. Open Remote SWE Job Board from your applications menu. Keep this extracted folder in place.')
+def open_browser(url):
+ import subprocess
+ subprocess.Popen(["xdg-open", url], start_new_session=True)
+
 def main():
  p=argparse.ArgumentParser();p.add_argument('--install',action='store_true');p.add_argument('--no-browser',action='store_true');p.add_argument('--import-now',action='store_true');p.add_argument('--pages',type=int,default=100);p.add_argument('--port',type=int,default=8765);a=p.parse_args()
  if a.install:
@@ -150,12 +159,12 @@ def main():
  lock=(DATA/'app.lock').open('w')
  try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
  except BlockingIOError:
-  if not a.no_browser:webbrowser.open('http://127.0.0.1:'+str(a.port))
+  if not a.no_browser:open_browser('http://127.0.0.1:'+str(a.port))
   return
  try:server=ThreadingHTTPServer(('127.0.0.1',a.port),Handler)
  except OSError:raise SystemExit(f'Port {a.port} is busy. Use --port with another port.')
  threading.Thread(target=scheduler,daemon=True).start()
- if not a.no_browser:threading.Timer(.5,lambda:webbrowser.open('http://127.0.0.1:'+str(a.port))).start()
+ if not a.no_browser:threading.Timer(.5,lambda:open_browser('http://127.0.0.1:'+str(a.port))).start()
  print('Job board running at http://127.0.0.1:'+str(a.port),flush=True)
  server.serve_forever()
 if __name__=='__main__':main()

@@ -25,3 +25,6 @@ notion-config.json
 .idea/
 .DS_Store
 *~
+
+# Local editor/reinstall backups
+*.bak

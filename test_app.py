@@ -49,3 +49,25 @@ class ApiTests(unittest.TestCase):
   import urllib.error
   with self.assertRaises(urllib.error.HTTPError) as e:self.call('/api/screen',{'id':'x','status':'Unexpected'})
   self.assertEqual(e.exception.code,400)
+
+
+class InstallTests(unittest.TestCase):
+ def test_reinstall_migrates_old_launcher_and_updates_moved_path(self):
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as temporary:
+   home=pathlib.Path(temporary)
+   apps=home/'.local/share/applications';apps.mkdir(parents=True)
+   desktop=home/'Desktop';desktop.mkdir()
+   legacy=apps/'remote-swe-board.desktop'
+   legacy.write_text('[Desktop Entry]\nExec=python3 /old/download/app.py\n')
+   with patch.object(app.Path,'home',return_value=home),patch('subprocess.check_output',return_value=str(desktop)),patch('subprocess.run'),patch('shutil.which',return_value='/usr/bin/update-desktop-database'):
+    for folder in ['Original App','Moved App']:
+     root=home/folder
+     with patch.object(app,'ROOT',root):app.install()
+     self.assertFalse(legacy.exists())
+     launchers=list(apps.glob('*.desktop'))
+     self.assertEqual([p.name for p in launchers],['org.local.RemoteSWEBoard.desktop'])
+     content=launchers[0].read_text()
+     self.assertIn('"'+str(root/'app.py')+'"',content)
+     self.assertEqual((desktop/'Remote SWE Job Board.desktop').read_text(),content)
+     self.assertTrue(launchers[0].stat().st_mode & 0o111)
